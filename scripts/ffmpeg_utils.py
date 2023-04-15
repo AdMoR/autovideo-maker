@@ -3,14 +3,14 @@ from textwrap import wrap
 import subprocess
 
 
-def add_subtitle(subtitle, video_path, output_path, min_duration=None):
+def add_subtitle(subtitle, video_path, output_path, min_duration=None) -> str:
     # 2 - Add the title
     subtitle = "\n".join(wrap(subtitle, 25))
     args = ['ffmpeg',
             "-y", '-i',
             video_path,
             '-filter_complex',
-            f"drawtext=fontfile=/usr/share/fonts/truetype/Gargi/Gargi.ttf:text='{subtitle}':fontcolor=white:fontsize=48:x=(w-text_w)/2:y=7*(h-text_h)/8",
+            f"drawtext=fontfile=/usr/share/fonts/truetype/Gargi/Gargi.ttf:text='{subtitle}':fontcolor=white:fontsize=36:x=(w-text_w)/2:y=7*(h-text_h)/8",
             '-max_muxing_queue_size', '9999',
             '-codec:a', 'copy',
             output_path]
@@ -31,7 +31,7 @@ def add_soundtrack(video_path, audio_path, output_path):
     """
     rez = subprocess.run(['ffmpeg', '-y',
                           '-i', video_path, '-i', audio_path,
-                          '-filter_complex', '[1:a:0]volume=0.5[a1];[0:a:0][a1]amerge=2[aout]',
+                          '-filter_complex', '[1:a:0]volume=0.25[a1];[0:a:0][a1]amerge=2[aout]',
                           '-map', '[aout]',
                           '-map', '0:v',
                           "-c:v", "copy",
@@ -62,3 +62,16 @@ def combine_img_audio(png_file_path, audio_path, mp4_file_path):
     if rez.returncode == 1:
         raise Exception("ffmpeg audio+image failed")
     return mp4_file_path
+
+
+def combine_part_in_concat_file(video_path_list, concat_file_path, out_path):
+    with open(concat_file_path, "w") as f:
+        for path in map(lambda x: os.path.basename(x), video_path_list):
+            text = f'file {path}\n'
+            f.write(text)
+    rez = subprocess.run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", concat_file_path,
+                          "-c", "copy", out_path])
+
+    if rez.returncode == 1:
+        raise Exception("ffmpeg speedup failed")
+    return out_path

@@ -4,13 +4,16 @@ from typing import NamedTuple, Any, Callable
 from collections import defaultdict
 import datetime
 import sys
+import random
 
 from utils import *
+from video_generator import Dialogue2Video
 
 
 prompt_ref_1 = "{}, high quality, digital art, trending on artstation"
-prompt_ref_2 = "{}, 3D render, 4k, Octane render"
+prompt_ref_2 = "{}, masterpiece, 3D render, 4k, Octane render"
 prompt_ref_3 = "{}, high quality, digital art, trending on artstation, vector art"
+prompt_ref_4 = "{}, comic, illustration masterpiece, great quality"
 
 
 class Script2Movie(NamedTuple):
@@ -23,13 +26,18 @@ class Script2Movie(NamedTuple):
             os.mkdir(self.output_dir)
 
         today = datetime.date.today()
+        image_prompt_template = random.sample([prompt_ref_1, prompt_ref_2, prompt_ref_3, prompt_ref_4], 1)[0]
         Dialogue2Video(self.script_path,
-                       "/home/amor/Documents/code_dw/ai-pokemon-episode/test.mp3",
-                       f"{self.output_dir}/gen_{today}",
-                       image_prompt_template=self.image_prompt_template).main()
+                       output_dir_prefix=f"{self.output_dir}/gen_{today}",
+                       image_prompt_template=image_prompt_template).main()
 
 
 if __name__ == "__main__":
-    path = sys.argv[1]
-    generator = Script2Movie(path)
-    generator.main()
+    file_dir = sys.argv[1]
+
+    paths = [os.path.join(file_dir, f) for f in os.listdir(file_dir) if f.endswith("txt")]
+
+    for path in paths:
+        print("Working on ", path)
+        generator = Script2Movie(path)
+        generator.main()
