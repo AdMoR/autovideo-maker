@@ -11,8 +11,7 @@ import torch
 from diffusers import StableDiffusionPipeline, EulerDiscreteScheduler
 import subprocess
 import openai
-from tts_utils import tts_solero_auto_speaker
-from ffmpeg_utils import *
+
 
 
 mapping = defaultdict(lambda : 'female-en-5')

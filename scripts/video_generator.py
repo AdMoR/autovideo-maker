@@ -13,8 +13,8 @@ import torch
 from diffusers import StableDiffusionPipeline, EulerDiscreteScheduler
 import subprocess
 import openai
-from tts_utils import tts_solero_auto_speaker
-from ffmpeg_utils import *
+from scripts.tts_utils import tts_solero_auto_speaker
+from scripts.ffmpeg_utils import *
 
 
 mapping = defaultdict(lambda : 'female-en-5')
@@ -33,16 +33,17 @@ mapping.update({'Jesse': 'female-en-5',
 #tts = TTS(model_name, gpu=True)
 
 # Use the Euler scheduler here instead
-model_id = "andite/anything-v4.0" #"stabilityai/stable-diffusion-2-1"
+model_id = "Lykon/DreamShaper" #"stabilityai/stable-diffusion-2-1"
 scheduler = EulerDiscreteScheduler.from_pretrained(model_id, subfolder="scheduler")
 pipe = StableDiffusionPipeline.from_pretrained(model_id, scheduler=scheduler, torch_dtype=torch.float16)
+pipe.safety_checker = None
 pipe = pipe.to("cuda")
 
 DEFAULT_NEG_PROMPT = "simple background, mask, lowres, bad anatomy, bad hands, text, error, missing fingers, " \
                      "extra digit, fewer digits, cropped, worst quality, low quality, normal quality, " \
                      "jpeg artifacts, signature, watermark, username, blurry, huge breasts, large breasts, sexy, " \
                      "sex, nsfw, sexual"
-N_STEPS = 150
+N_STEPS = 50
 GUIDANCE_SCALE = 15
 
 
@@ -90,9 +91,11 @@ def parse_script_and_scene(lines, separator=".", to_replace=";!,—:", to_clean=
 class VideoElementGenerators:
     tts_func: Any = tts_solero_auto_speaker
     img_gen_func: Callable[[str], Any] = lambda scene_prompt: pipe(scene_prompt, num_inference_steps=N_STEPS,
+                                                                   height=1024,
+                                                                   width=768,
                                                                    negative_prompt=DEFAULT_NEG_PROMPT,
-                                                                   num_images_per_prompt=10,
-                                                                   guidance_scale=GUIDANCE_SCALE).images[0]
+                                                                   num_images_per_prompt=4,
+                                                                   guidance_scale=GUIDANCE_SCALE)
 
 
 class VideoElement(NamedTuple):
@@ -100,13 +103,13 @@ class VideoElement(NamedTuple):
     dialogue: str
     speaker: str
     output_dir: str
-    images: List[str] = list()
-    audios: List[str] = list()
+    images: List[str]
+    audios: List[str]
     generation_index: int = 0
 
     @classmethod
-    def from_txt_args(cls, name, text, prompt, index):
-        instance = cls(prompt, text, name, generation_index=index)
+    def from_txt_args(cls, name, text, prompt, output_dir, index):
+        instance = cls(prompt, text, name, output_dir, list(), list(), generation_index=index)
         instance.gen()
         return instance
 
@@ -118,28 +121,17 @@ class VideoElement(NamedTuple):
 
     def gen(self):
         """
-        For image generation :
-
-        > rez = pipe("prout", num_images_per_prompt=2)
-        > rez
-        StableDiffusionPipelineOutput(images=[<PIL.Image.Image image mode=RGB size=512x512 at 0x7F8E7D154640>,
-            <PIL.Image.Image image mode=RGB size=512x512 at 0x7F8E81C2C400>], nsfw_content_detected=[False, False])
-        > rez.images
-        [<PIL.Image.Image image mode=RGB size=512x512 at 0x7F8E7D154640>,
-         <PIL.Image.Image image mode=RGB size=512x512 at 0x7F8E81C2C400>]
-        > rez.images[0]
-        <PIL.Image.Image image mode=RGB size=512x512 at 0x7F8E7D154640>
-        > rez.images[0].save("test_0.png")
-
         """
         VideoElementGenerators.tts_func(self.dialogue, self.speaker, self.audio_path())
         self.audios.append(self.audio_path())
-        pil_images = VideoElementGenerators.img_gen_func(self.prompt).images
+        pil_images = list()
+        for _ in range(3):
+            pil_images.extend(VideoElementGenerators.img_gen_func(self.prompt).images)
         for i, img in enumerate(pil_images):
             img.save(self.image_path(i))
-            self.images.extend(self.image_path(i))
+            self.images.append(self.image_path(i))
 
-    def to_video(self, output_dir, img_index=0, audio_index=0) -> str:
+    def to_video(self, img_index=0, audio_index=0) -> str:
         # 1 - Handle inputs
         if len(self.images) == 0 or len(self.audios) == 0:
             self.gen()
@@ -152,10 +144,10 @@ class VideoElement(NamedTuple):
 
         # 2 - Generate the final video
         # 2.a - Combine audio and image
-        mp4_file_path = f"{output_dir}/output_{self.generation_index}.mp4"
+        mp4_file_path = f"{self.output_dir}/output_{self.generation_index}.mp4"
         combine_img_audio(png_file_path, wav_file_path, mp4_file_path)
         # 2.b - Combine video and subtitle
-        final_mp4_file_path = f"{output_dir}/output_{self.generation_index}_subtitled.mp4"
+        final_mp4_file_path = f"{self.output_dir}/output_{self.generation_index}_subtitled.mp4"
         return add_subtitle(self.dialogue, mp4_file_path, final_mp4_file_path)
 
     def serialized(self):
@@ -185,15 +177,15 @@ class Dialogue2Video(NamedTuple):
 
     @property
     def output_dir(self):
-        return f"{self.output_dir_prefix}_{self.iter}"
+        return f"{self.output_dir_prefix}"
 
     def main(self):
         for i in range(10):
             self = self._replace(iter=i)
             audio_path = self.find_soundtrack()
-            self.dialogue_to_video(audio_path)
+            path = self.dialogue_to_video(audio_path, image_index_default=i)
             suffix = f"{os.path.basename(self.dialogue_path)}_{i}"
-            final_path = self.cleanup(suffix=suffix)
+            final_path = self.cleanup(path, suffix=suffix)
             print(f"Clip available under {final_path}")
 
     def find_soundtrack(self):
@@ -201,10 +193,9 @@ class Dialogue2Video(NamedTuple):
                   for f in os.listdir(self.audio_lib_folder) if f.endswith("mp3")]
         return random.sample(tracks, 1)[0]
 
-    def cleanup(self, suffix=None):
+    def cleanup(self, src, suffix=None):
         if not os.path.exists(self.final_directory):
             os.mkdir(self.final_directory)
-        src = f"{self.output_dir}/final.mp4"
         if suffix is None:
             suffix = str(datetime.datetime.now()).replace(' ', '_')
         dst = f"{self.final_directory}/final_{suffix}.mp4"
@@ -223,7 +214,7 @@ class Dialogue2Video(NamedTuple):
         vpath = add_subtitle(book_title, image_path, f"{self.output_dir}/title_vid.mp4", min_duration=2)
         return add_silent_soundtrack(vpath, f"{self.output_dir}/title_vid_audio.mp4")
 
-    def dialogue_to_video(self, audio_path):
+    def dialogue_to_video(self, audio_path, image_index_default=0):
         if not os.path.exists(self.output_dir):
             os.mkdir(self.output_dir)
         concat_file_path = f"{self.output_dir}/filelist.txt"
@@ -245,7 +236,30 @@ class Dialogue2Video(NamedTuple):
 
         print("====> ", self.output_dir, seqs, lines)
         for i, (name, text, prompt) in enumerate(seqs):
-            # 1 - Get the audio
+
+            # 2 - Gen images, audio and video
+            serialization_path = f"{self.output_dir}/serialized_{i}.json"
+            if not os.path.exists(serialization_path):
+                ve = VideoElement.from_txt_args(name, text, prompt, self.output_dir, i)
+                ve.gen()
+                ve.save_serialized(serialization_path)
+                del ve
+            ve = VideoElement.load_serialized(serialization_path)
+
+            # 3.c - Add to the set to merge
+            video_path = ve.to_video(img_index=image_index_default)
+            video_part_paths.append(video_path)
+
+        # 4.a - Combine all the video chunks together
+        combined_name = f"{self.output_dir}/output_version={image_index_default}.mp4"
+        combine_part_in_concat_file(video_part_paths, concat_file_path, combined_name)
+        # 4.b - And add the background soundtrack
+        final_path = f"{self.output_dir}/final_version={image_index_default}.mp4"
+        add_soundtrack(combined_name, audio_path, final_path)
+        return final_path
+
+
+"""
             wav_file_path = f"{self.output_dir}/output_{i}.wav"
             # Tts function as it was before : tts_solero_auto_speaker(text, name, wav_file_path)
             # TODO : create an adapter for all TTs interfaces
@@ -268,11 +282,4 @@ class Dialogue2Video(NamedTuple):
             # 3.b - Combine video and subtitle
             final_mp4_file_path = f"{self.output_dir}/output_{i}_subtitled.mp4"
             add_subtitle(text, mp4_file_path, final_mp4_file_path)
-            # 3.c - Add to the set to merge
-            video_part_paths.append(final_mp4_file_path)
-
-        # 4.a - Combine all the video chunks together
-        combine_part_in_concat_file(video_part_paths, concat_file_path,  f"{self.output_dir}/output.mp4")
-        # 4.b - And add the background soundtrack
-        final_path = f"{self.output_dir}/final.mp4"
-        add_soundtrack(f"{self.output_dir}/output.mp4", audio_path, final_path)
+"""
