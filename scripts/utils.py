@@ -79,3 +79,10 @@ class TitleBasedEpisodeGenerator(NamedTuple):
         dialogue_response = completion_2.choices[0].text
         return dialogue_response
 
+
+def make_dir(path):
+    dirname = os.path.dirname(path)
+    if not os.path.exists(dirname):
+        make_dir(dirname)
+    if not os.path.exists(path):
+        os.mkdir(path)

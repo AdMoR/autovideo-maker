@@ -23,12 +23,8 @@ class Script2Movie(NamedTuple):
             os.mkdir(self.output_dir)
 
         today = datetime.date.today()
-        script_name = os.path.basename(self.script_path).split(".")[0]
-        base_dir = f"{self.output_dir}/gen_{today}"
-        if not os.path.exists(base_dir):
-            os.mkdir(base_dir)
         Dialogue2Video(self.script_path,
-                       output_dir_prefix=f"{base_dir}/{script_name}",
+                       output_dir_prefix=f"{self.output_dir}/gen_{today}",
                        image_prompt_template=self.image_prompt_template).\
             main()
 
