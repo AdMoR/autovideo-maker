@@ -10,7 +10,7 @@ def add_subtitle(subtitle, video_path, output_path, min_duration=None) -> str:
             "-y", '-i',
             video_path,
             '-filter_complex',
-            f"drawtext=fontfile=/usr/share/fonts/truetype/Gargi/Gargi.ttf:text='{subtitle}':fontcolor=white:fontsize=36:x=(w-text_w)/2:y=7*(h-text_h)/8",
+            f"drawtext=fontfile=/usr/share/fonts/truetype/Gargi/Gargi.ttf:text='{subtitle}':fontcolor=white:fontsize=36:x=(w-text_w)/2:y=7*(h-text_h)/8:box=1:boxcolor=black@0.5:boxborderw=5",
             '-max_muxing_queue_size', '9999',
             '-codec:a', 'copy',
             output_path]
@@ -73,5 +73,5 @@ def combine_part_in_concat_file(video_path_list, concat_file_path, out_path):
                           "-c", "copy", out_path])
 
     if rez.returncode == 1:
-        raise Exception("ffmpeg speedup failed")
+        raise Exception("ffmpeg concat failed")
     return out_path

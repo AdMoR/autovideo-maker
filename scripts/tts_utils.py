@@ -1,4 +1,5 @@
 import torch
+import TTS
 
 language = 'en'
 model_id = 'v3_en'
@@ -27,10 +28,12 @@ speaker_config = {
     "DEFAULT": "en_7"}
 
 
+
+
 model, example_text = torch.hub.load(repo_or_dir='snakers4/silero-models',
-                                     model='silero_tts',
-                                     language=language,
-                                     speaker=model_id)
+                                             model='silero_tts',
+                                             language=language,
+                                             speaker=model_id)
 
 
 def tts_solero_auto_speaker(text, speaker_name, audio_path):
@@ -40,4 +43,18 @@ def tts_solero_auto_speaker(text, speaker_name, audio_path):
                    speaker=speaker_config[speaker_name],
                    sample_rate=sample_rate)
 
+from TTS.api import TTS
 
+
+class TTSTTS():
+    model_name = 'tts_models/en/vctk/vits'
+
+    def __init__(self):
+        self.tts = TTS(self.model_name, gpu=True)
+        self.speakers = self.tts.speakers
+
+    def generate(self, text, speaker_name, out_path):
+        speaker = self.speakers[61]
+        text = text.replace("/", "")
+        self.tts.tts_to_file(text=text, speaker=speaker,
+                            file_path=out_path)

@@ -1,41 +1,7 @@
 import os
 import argparse
 from typing import NamedTuple, Any, Callable
-from collections import defaultdict
-import datetime
-from textwrap import wrap
-import shutil
-
-from TTS.api import TTS
-import torch
-from diffusers import StableDiffusionPipeline, EulerDiscreteScheduler
-import subprocess
 import openai
-
-
-
-mapping = defaultdict(lambda : 'female-en-5')
-mapping.update({'Jesse': 'female-en-5',
-               'Pikachu': 'female-en-5',
-               'Misty': 'female-en-5',
-               "Ash": 'female-en-5\n',
-               "Voice": 'female-pt-4\n',
-               "James": 'male-en-2',
-               "Narrator": 'male-en-2\n',
-               'Brock': 'male-pt-3\n',
-               "Team Rocket": "male-en-2",
-                'Jessie': 'female-en-5',})
-
-#model_name = TTS.list_models()[0]
-#tts = TTS(model_name, gpu=True)
-
-# Use the Euler scheduler here instead
-model_id = "stabilityai/stable-diffusion-2-1"
-scheduler = EulerDiscreteScheduler.from_pretrained(model_id, subfolder="scheduler")
-pipe = StableDiffusionPipeline.from_pretrained(model_id, scheduler=scheduler, torch_dtype=torch.float16)
-pipe = pipe.to("cuda")
-N_STEPS = 50
-GUIDANCE_SCALE = 15
 
 
 with open("/home/amor/Documents/code_dw/langchain_test/token") as f:

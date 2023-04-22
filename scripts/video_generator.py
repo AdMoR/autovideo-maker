@@ -10,7 +10,7 @@ import shutil
 
 from scripts.ffmpeg_utils import *
 from scripts.utils import make_dir
-from scripts.base_video_classes import VideoElement, VideoDescriptor, N_IMAGE_PER_PROMPT
+from scripts.base_video_classes import VideoElement, VideoDescriptor, N_IMAGE_PER_PROMPT, N_GENERATION_ROUNDS
 
 
 def parse_script_and_scene(lines, separator=".", to_replace=";!,—:", to_clean="/'"):
@@ -49,8 +49,7 @@ def parse_script_and_scene(lines, separator=".", to_replace=";!,—:", to_clean=
         for sub in text.split(separator):
             if len(sub) < 3:
                 continue
-            for ssub in wrap(sub, 75):
-                sequences.append((name, ssub, prompt))
+            sequences.append((name, sub, prompt))
     return sequences, title
 
 
@@ -73,7 +72,7 @@ class Dialogue2Video(NamedTuple):
 
     def main(self):
         make_dir(self.output_dir)
-        for i in range(3 * N_IMAGE_PER_PROMPT):
+        for i in range(N_GENERATION_ROUNDS * N_IMAGE_PER_PROMPT):
             audio_path = self.find_soundtrack()
             with open(f"{self.output_dir}/soundtrack_{i}.txt", "w") as f:
                 f.write(audio_path)

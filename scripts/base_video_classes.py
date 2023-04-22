@@ -13,12 +13,10 @@ import torch
 from diffusers import StableDiffusionPipeline, EulerDiscreteScheduler, StableDiffusionLatentUpscalePipeline
 import subprocess
 import openai
-from scripts.tts_utils import tts_solero_auto_speaker
+from scripts.tts_utils import TTSTTS, tts_solero_auto_speaker
 from scripts.ffmpeg_utils import *
 from scripts.utils import make_dir
 
-
-generator = torch.manual_seed(33)
 
 mapping = defaultdict(lambda : 'female-en-5')
 mapping.update({'Jesse': 'female-en-5',
@@ -35,18 +33,25 @@ mapping.update({'Jesse': 'female-en-5',
 #model_name = TTS.list_models()[0]
 #tts = TTS(model_name, gpu=True)
 
-# Use the Euler scheduler here instead
-model_id = "Lykon/DreamShaper" #"Lykon/DreamShaper" #"stabilityai/stable-diffusion-2-1"
-scheduler = EulerDiscreteScheduler.from_pretrained(model_id, subfolder="scheduler")
-pipe = StableDiffusionPipeline.from_pretrained(model_id, scheduler=scheduler, torch_dtype=torch.float16)
-pipe.safety_checker = None
-pipe = pipe.to("cuda")
+
+try:
+    # Use the Euler scheduler here instead
+    model_id = "Lykon/DreamShaper" #"Lykon/DreamShaper" #"stabilityai/stable-diffusion-2-1"
+    scheduler = EulerDiscreteScheduler.from_pretrained(model_id, subfolder="scheduler")
+    pipe = StableDiffusionPipeline.from_pretrained(model_id, scheduler=scheduler, torch_dtype=torch.float16)
+    pipe.safety_checker = None
+    pipe = pipe.to("cuda")
+except:
+    pass
 
 DEFAULT_NEG_PROMPT = "mask, worst quality, bad anatomy, bad hands, too many arms, too many fingers, watermark, text, cropped"
-N_STEPS = 100
+N_STEPS = 75
 GUIDANCE_SCALE = 15
 IMG_SIZE = 768
 N_IMAGE_PER_PROMPT = 3
+N_GENERATION_ROUNDS = 10
+
+TTS_SINGLETON = TTSTTS()
 
 
 class VideoElementGenerators:
@@ -55,7 +60,7 @@ class VideoElementGenerators:
                                                                    height=IMG_SIZE,
                                                                    width=IMG_SIZE,
                                                                    #output_type="latent",
-                                                                   generator=generator,
+                                                                   #generator=generator,
                                                                    negative_prompt=DEFAULT_NEG_PROMPT,
                                                                    num_images_per_prompt=N_IMAGE_PER_PROMPT,
                                                                    guidance_scale=GUIDANCE_SCALE)
@@ -94,7 +99,7 @@ class VideoElement(NamedTuple):
         else:
             self.audios.append(None)
         pil_images = list()
-        for _ in range(3):
+        for _ in range(N_GENERATION_ROUNDS):
             images = VideoElementGenerators.img_gen_func(self.prompt).images
             pil_images.extend(images)
         for i, img in enumerate(pil_images):
@@ -106,7 +111,7 @@ class VideoElement(NamedTuple):
         if len(self.images) == 0 or len(self.audios) == 0:
             self.gen()
         if img_index >= len(self.images):
-            raise Exception("Wrong image index")
+            raise Exception(f"Wrong image index :  {img_index}")
         if audio_index >= len(self.audios):
             raise Exception("Wrong audio index")
         png_file_path = self.images[img_index]
