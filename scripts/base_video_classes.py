@@ -7,10 +7,12 @@ import datetime
 import random
 from textwrap import wrap
 import shutil
+import time
 
 from TTS.api import TTS
 import torch
-from diffusers import StableDiffusionPipeline, EulerDiscreteScheduler, StableDiffusionLatentUpscalePipeline
+from diffusers import StableDiffusionPipeline, EulerDiscreteScheduler, StableDiffusionInpaintPipeline, \
+    EulerAncestralDiscreteScheduler
 import subprocess
 import openai
 from scripts.tts_utils import TTSTTS, tts_solero_auto_speaker
@@ -89,9 +91,8 @@ class VideoElement(NamedTuple):
 
     def gen(self):
         """
-        1 - Gen 1 audsio
-        2 - Gen low reso images
-        3 - Upscale them
+        1 - Gen 1 audio
+        2 - Gen low res images
         """
         if self.speaker is not None:
             VideoElementGenerators.tts_func(self.dialogue, self.speaker, self.audio_path())
@@ -156,3 +157,134 @@ class VideoDescriptor(NamedTuple):
         ves = [VideoElement(**e) for e in d["all_video_elements"]]
         del d["all_video_elements"]
         return cls(**d, all_video_elements=ves)
+
+
+class ZoomModels:
+
+    @classmethod
+    def build_model_fn(cls, negative_prompt, guidance_scale=15, num_inference_steps=50, size=512):
+        pipe = StableDiffusionInpaintPipeline.from_pretrained(
+            model_id,
+            torch_dtype=torch.float16,
+        )
+        pipe.scheduler = EulerAncestralDiscreteScheduler.from_config(pipe.scheduler.config)
+        pipe = pipe.to("cuda")
+
+        def no_check(images, **kwargs):
+            return images, False
+
+        pipe.safety_checker = no_check
+        pipe.enable_attention_slicing()
+
+        return lambda prompt, current_image, mask_image: pipe(prompt=prompt,
+             negative_prompt=negative_prompt,
+             image=current_image,
+             guidance_scale=guidance_scale,
+             height=size,
+             width=size,
+             mask_image=mask_image,
+             num_inference_steps=num_inference_steps)
+
+
+class ZoomVideoElement(NamedTuple):
+    prompts_array: List[str]
+    dialogue: str
+    speaker: str
+    output_dir: str
+    pipe_fn: Any
+    images: List[Any]
+
+    @classmethod
+    def from_txt_args(cls, name, text, prompts, output_dir, index):
+        instance = cls(prompts, text, name, output_dir, None, list(),)
+        instance.gen()
+        return instance
+
+    def zoom(self, custom_init_image):
+        prompts = {}
+        for x in self.prompts_array:
+            try:
+                key = int(x[0])
+                value = str(x[1])
+                prompts[key] = value
+            except ValueError:
+                pass
+        num_outpainting_steps = len(self.prompts_array)
+
+        height = 512
+        width = height
+
+        current_image = Image.new(mode="RGBA", size=(height, width))
+        mask_image = np.array(current_image)[:, :, 3]
+        mask_image = Image.fromarray(255 - mask_image).convert("RGB")
+        current_image = current_image.convert("RGB")
+        if (custom_init_image):
+            current_image = custom_init_image.resize(
+                (width, height), resample=Image.LANCZOS)
+        else:
+            print(">>> ", prompts[min(k for k in prompts.keys() if k >= 0)])
+            init_images = self.pipe_fn(prompts[min(k for k in prompts.keys() if k >= 0)],
+                                       current_image,
+                                       mask_image,)[0]
+            current_image = init_images[0]
+        mask_width = 128
+        num_interpol_frames = 30
+
+        self.images.append(current_image)
+
+        for i in range(num_outpainting_steps):
+            print('Outpaint step: ' + str(i + 1) +
+                  ' / ' + str(num_outpainting_steps))
+
+            prev_image_fix = current_image
+            prev_image = shrink_and_paste_on_blank(current_image, mask_width, mask_width)
+            current_image = prev_image
+
+            # create mask (black image with white mask_width width edges)
+            mask_image = np.array(current_image)[:, :, 3]
+            mask_image = Image.fromarray(255 - mask_image).convert("RGB")
+
+            # inpainting step
+            current_image = current_image.convert("RGB")
+            print("-----> ", prompts[max(k for k in prompts.keys() if k <= i)])
+            images = self.pipe_fn(prompts[max(k for k in prompts.keys() if k <= i)],
+                                  current_image,
+                                  mask_image, )[0]
+            current_image = images[0]
+            current_image.paste(prev_image, mask=prev_image)
+
+            # interpolation steps bewteen 2 inpainted images (=sequential zoom and crop)
+            for j in range(num_interpol_frames - 1):
+                interpol_image = current_image
+                interpol_width = round(
+                    (1 - (1 - 2 * mask_width / height) ** (1 - (j + 1) / num_interpol_frames)) * height / 2
+                )
+                interpol_image = interpol_image.crop((interpol_width,
+                                                      interpol_width,
+                                                      width - interpol_width,
+                                                      height - interpol_width))
+
+                interpol_image = interpol_image.resize((height, width))
+
+                # paste the higher resolution previous image in the middle to avoid drop in quality caused by zooming
+                interpol_width2 = round(
+                    (1 - (height - 2 * mask_width) / (height - 2 * interpol_width)) / 2 * height
+                )
+                prev_image_fix_crop = shrink_and_paste_on_blank(
+                    prev_image_fix, interpol_width2, interpol_width2)
+                interpol_image.paste(prev_image_fix_crop, mask=prev_image_fix_crop)
+
+                self.images.append(interpol_image)
+            self.images.append(current_image)
+
+        return self.to_video(self.images)
+
+    def to_video(self, all_frames):
+        save_path = f"{self.output_dir}/infinite_zoom_{str(time.time())}.mp4"
+        fps = 30
+        start_frame_dupe_amount = 15
+        last_frame_dupe_amount = 15
+
+        write_video(save_path, all_frames, fps, False,
+                    start_frame_dupe_amount, last_frame_dupe_amount)
+        return save_path
