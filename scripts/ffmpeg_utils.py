@@ -69,7 +69,7 @@ def combine_img_audio(png_file_path, audio_path, mp4_file_path):
 
 def combine_part_in_concat_file(video_path_list, concat_file_path, out_path):
     with open(concat_file_path, "w") as f:
-        for path in map(lambda x: os.path.basename(x), video_path_list):
+        for path in map(lambda x: os.path.abspath(x), video_path_list):
             text = f'file {path}\n'
             f.write(text)
     rez = subprocess.run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", concat_file_path,

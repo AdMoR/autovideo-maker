@@ -47,7 +47,7 @@ except:
     pass
 
 DEFAULT_NEG_PROMPT = "mask, worst quality, bad anatomy, bad hands, too many arms, too many fingers, watermark, text, cropped"
-N_STEPS = 75
+N_STEPS = 25
 GUIDANCE_SCALE = 15
 IMG_SIZE = 768
 N_IMAGE_PER_PROMPT = 3
