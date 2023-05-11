@@ -60,6 +60,7 @@ class Dialogue2Video(NamedTuple):
     image_prompt_template: str = "{}, anime art, an image from Pokemon the film, high quality"
     title_prompt: str = "sunset, bright colors, no_humans, panorama, great details"
     final_directory: str = "./finished_clips"
+    closing_prompt: str = "sunset, bright colors, no_humans, panorama, great details"
 
     @property
     def output_dir(self):
@@ -120,6 +121,14 @@ class Dialogue2Video(NamedTuple):
             video_path = ve.to_video(img_index=image_index_default)
             video_part_paths.append(video_path)
 
+        closing = True
+        if closing:
+            serialization_path = f"{self.output_dir}/serialized_title.json"
+            ve = self.gen_or_build_ve(None, "@TrueBookWisdom", self.title_prompt, serialization_path, -2)
+            all_video_elements.append(ve)
+            out_path = ve.to_video(image_index_default)
+            video_part_paths.append(out_path)
+
         # 4.a - Combine all the video chunks together
         combined_name = f"{self.output_dir}/output_version={image_index_default}.mp4"
         combine_part_in_concat_file(video_part_paths, concat_file_path, combined_name)
@@ -144,7 +153,6 @@ class Dialogue2Video(NamedTuple):
             suffix = str(datetime.datetime.now()).replace(' ', '_')
         dst = f"{self.final_directory}/final_{suffix}.mp4"
         shutil.copyfile(src, dst)
-        #shutil.rmtree(self.output_dir)
         return dst
 
     def gen_or_build_ve(self, name, text, prompt, serialization_path, i):
