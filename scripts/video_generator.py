@@ -10,7 +10,7 @@ import shutil
 
 from scripts.ffmpeg_utils import *
 from scripts.utils import make_dir
-from scripts.base_video_classes import VideoElement, VideoDescriptor, N_IMAGE_PER_PROMPT, N_GENERATION_ROUNDS
+from scripts.base_video_classes import VideoElement, VideoDescriptor#, N_IMAGE_PER_PROMPT, N_GENERATION_ROUNDS
 
 
 def parse_script_and_scene(lines, separator=".", to_replace=";!,—:", to_clean="/'"):

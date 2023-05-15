@@ -15,57 +15,9 @@ from diffusers import StableDiffusionPipeline, EulerDiscreteScheduler, StableDif
     EulerAncestralDiscreteScheduler
 import subprocess
 import openai
-from scripts.tts_utils import TTSTTS, tts_solero_auto_speaker
+
 from scripts.ffmpeg_utils import *
 from scripts.utils import make_dir
-
-
-mapping = defaultdict(lambda : 'female-en-5')
-mapping.update({'Jesse': 'female-en-5',
-               'Pikachu': 'female-en-5',
-               'Misty': 'female-en-5',
-               "Ash": 'female-en-5\n',
-               "Voice": 'female-pt-4\n',
-               "James": 'male-en-2',
-               "Narrator": 'male-en-2\n',
-               'Brock': 'male-pt-3\n',
-               "Team Rocket": "male-en-2",
-                'Jessie': 'female-en-5',})
-
-#model_name = TTS.list_models()[0]
-#tts = TTS(model_name, gpu=True)
-
-
-try:
-    # Use the Euler scheduler here instead
-    model_id = "Lykon/DreamShaper" #"Lykon/DreamShaper" #"stabilityai/stable-diffusion-2-1"
-    scheduler = EulerDiscreteScheduler.from_pretrained(model_id, subfolder="scheduler")
-    pipe = StableDiffusionPipeline.from_pretrained(model_id, scheduler=scheduler, torch_dtype=torch.float16)
-    pipe.safety_checker = None
-    pipe = pipe.to("cuda")
-except:
-    pass
-
-DEFAULT_NEG_PROMPT = "mask, worst quality, bad anatomy, bad hands, too many arms, too many fingers, watermark, text, cropped"
-N_STEPS = 25
-GUIDANCE_SCALE = 15
-IMG_SIZE = 768
-N_IMAGE_PER_PROMPT = 3
-N_GENERATION_ROUNDS = 10
-
-TTS_SINGLETON = TTSTTS()
-
-
-class VideoElementGenerators:
-    tts_func: Any = tts_solero_auto_speaker
-    img_gen_func: Callable[[str], Any] = lambda scene_prompt: pipe(scene_prompt, num_inference_steps=N_STEPS,
-                                                                   height=IMG_SIZE,
-                                                                   width=IMG_SIZE,
-                                                                   #output_type="latent",
-                                                                   #generator=generator,
-                                                                   negative_prompt=DEFAULT_NEG_PROMPT,
-                                                                   num_images_per_prompt=N_IMAGE_PER_PROMPT,
-                                                                   guidance_scale=GUIDANCE_SCALE)
 
 
 class VideoElement(NamedTuple):
@@ -80,7 +32,7 @@ class VideoElement(NamedTuple):
     @classmethod
     def from_txt_args(cls, name, text, prompt, output_dir, index):
         instance = cls(prompt, text, name, output_dir, list(), list(), generation_index=index)
-        instance.gen()
+        #instance.gen()
         return instance
 
     def audio_path(self, index=0):
