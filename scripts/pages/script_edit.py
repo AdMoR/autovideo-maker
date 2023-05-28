@@ -1,17 +1,8 @@
 # Contents of ~/my_app/pages/page_2.py
 import streamlit as st
-import requests
-import json
-import io
-import base64
-from PIL import Image
-import numpy as np
-import scipy
-import os
-import urllib.parse
-import subprocess
 from scripts.ffmpeg_utils import *
 from scripts.video_generator import parse_script_and_scene
+from scripts.web_api import txt_to_speech_call, stable_diff_call
 from shutil import copyfile
 
 output_dir = "./temp"
@@ -28,40 +19,26 @@ audio_dir = "/home/amor/Documents/code_dw/ai-pokemon-episode/audio_lib/adventure
 audio_paths = [os.path.join(audio_dir, f) for f in os.listdir(audio_dir)]
 
 
-def build_gen(output_dir, speaker, speech_lines, prompt, image_key, audio_key):
+def build_gen(output_dir, speaker, speech_key, prompt_key, image_key, audio_key):
 
     def image_gen():
-        print("----> ", image_key, "   ", prompt)
-        url = "http://127.0.0.1:7860/sdapi/v1/txt2img"
-        r = requests.post(url,
-                          data=json.dumps({"prompt": f"{prompt}, {global_pos_prompt}",
-                                           "negative_prompt": global_neg_prompt, "steps": 20,
-                                           "hr_scale": 2, "hr_upscaler": "ESRGAN_4x",
-                                           "width": 768, "height": 768}),
-                          headers={"Content-Type": "application/json"}).json()
-        image = None
-        for i in r['images']:
-            image = Image.open(io.BytesIO(base64.b64decode(i.split(",", 1)[0])))
-            break
-        st.session_state[image_key] = image
+        prompt = st.session_state[prompt_key]
+        images = stable_diff_call(f"{prompt}, {global_pos_prompt}", global_neg_prompt)
+        st.session_state[image_key] = images[0]
 
     def audio_gen():
         """
         curl -L -X GET 'http://localhost:5002/api/tts?text=kaza+maraviyosa&speaker_id=p243&style_wav=&language_id='
         --output maraviyoza.wav
         """
+        print(speech_key, "----", list(st.session_state.keys()))
+        speech_lines = st.session_state[speech_key]
         fpath = f"{output_dir}/{audio_key}_{speaker}_{abs(hash(speech_lines) % 10000)}.wav"
         if os.path.exists(fpath):
             st.session_state[audio_key] = fpath
             return
 
-        safe_string = urllib.parse.quote_plus(speech_lines)
-        url = f"http://localhost:5002/api/tts?text={safe_string}&speaker_id={speaker}&style_wav=&language_id="
-
-        rez = subprocess.run(["curl", "-L", "-X", "GET", url,  "--output", fpath])
-        if rez.returncode == 1:
-            raise Exception("ffmpeg audio+image failed")
-
+        fpath = txt_to_speech_call(speech_lines, speaker, fpath)
         st.session_state[audio_key] = fpath
 
     def gen():
@@ -122,7 +99,11 @@ def gen_all():
     elements = list(filter(None, inputs_array))
     print(elements)
     for i, x in enumerate(elements):
-        build_gen(output_dir, x[0], x[2], x[3], f"image_{i}", f"audio_{i}")()
+        image_key = f"image_{i}"
+        audio_key = f"audio_{i}"
+        speech_key = f"speech_{i}"
+        prompt_key = f"prompt_{i}"
+        build_gen(output_dir, x[0], speech_key, prompt_key, image_key, audio_key)()
 
 
 st.markdown("# Load the base script  ️")
@@ -145,15 +126,18 @@ for i, (name, speech, prompt) in enumerate(sequences):
 
         image_key = f"image_{i}"
         audio_key = f"audio_{i}"
+        speech_key = f"speech_{i}"
+        prompt_key = f"prompt_{i}"
         with c0:
             pass
         with c1:
-            n_speech = st.text_area(f"Speech {i}", value=speech)
+            n_speech = st.text_area(f"Speech {i}", key=speech_key, value=speech)
             speaker = st.selectbox(f"Speaker {i}", speakers, speakers.index("p243"))
         with c2:
-            n_prompt = st.text_area(f"Prompt {i}", value=prompt)
+            n_prompt = st.text_area(f"Prompt {i}", key=prompt_key, value=prompt)
         with c3:
-            st.button(f"Generate {i}", on_click=build_gen(output_dir, speaker, speech, n_prompt, image_key, audio_key))
+            st.button(f"Generate {i}", on_click=build_gen(output_dir, speaker, speech_key, prompt_key,
+                                                          image_key, audio_key))
         with c4:
             st.text(i)
             if image_key in st.session_state:
