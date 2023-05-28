@@ -13,7 +13,7 @@ from scripts.utils import make_dir
 from scripts.base_video_classes import VideoElement, VideoDescriptor#, N_IMAGE_PER_PROMPT, N_GENERATION_ROUNDS
 
 
-def parse_script_and_scene(lines, separator=".", to_replace=";!,—:", to_clean="/'"):
+def parse_script_and_scene(lines, separator=".", to_replace=";!,—:", to_clean="/'", mode=None):
     """
     1 - Check the format
     2 - On dialogue lines, extract name and speech
@@ -49,7 +49,12 @@ def parse_script_and_scene(lines, separator=".", to_replace=";!,—:", to_clean=
         for sub in text.split(separator):
             if len(sub) < 3:
                 continue
-            sequences.append((name, sub, prompt))
+            if mode is None:
+                sequences.append((name, sub, prompt))
+            elif mode == "no_prompt":
+                sequences.append((name, sub, sub))
+            else:
+                raise Exception("Unknown prompt mode")
     return sequences, title
 
 

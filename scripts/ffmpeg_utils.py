@@ -29,12 +29,12 @@ def add_subtitle(subtitle, video_path, output_path, min_duration=None) -> str:
     return output_path
 
 
-def add_soundtrack(video_path, audio_path, output_path):
+def add_soundtrack(video_path, audio_path, output_path, volume_mix=0.3):
     """
     """
     rez = subprocess.run(['ffmpeg', '-y',
                           '-i', video_path, '-i', audio_path,
-                          '-filter_complex', '[1:a:0]volume=0.25[a1];[0:a:0][a1]amerge=2[aout]',
+                          '-filter_complex', f'[1:a:0]volume={volume_mix}[a1];[0:a:0][a1]amerge=2[aout]',
                           '-map', '[aout]',
                           '-map', '0:v',
                           "-c:v", "copy",
@@ -44,6 +44,7 @@ def add_soundtrack(video_path, audio_path, output_path):
                           output_path])
     if rez.returncode != 0:
         raise Exception(rez)
+    return output_path
 
 
 def add_silent_soundtrack(video_path, out_path):
