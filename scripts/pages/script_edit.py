@@ -31,7 +31,6 @@ def build_gen(output_dir, speaker, speech_key, prompt_key, image_key, audio_key)
         curl -L -X GET 'http://localhost:5002/api/tts?text=kaza+maraviyosa&speaker_id=p243&style_wav=&language_id='
         --output maraviyoza.wav
         """
-        print(speech_key, "----", list(st.session_state.keys()))
         speech_lines = st.session_state[speech_key]
         fpath = f"{output_dir}/{audio_key}_{speaker}_{abs(hash(speech_lines) % 10000)}.wav"
         if os.path.exists(fpath):
