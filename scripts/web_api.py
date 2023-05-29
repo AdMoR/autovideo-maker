@@ -18,12 +18,18 @@ def txt_to_speech_call(speech_lines, speaker, outpath):
     return outpath
 
 
-def stable_diff_call(pos_prompt, neg_prompt):
-    url = "http://127.0.0.1:7860/sdapi/v1/txt2img"
-    r = requests.post(url,
-                      data=json.dumps({"prompt": pos_prompt,
-                                       "negative_prompt": neg_prompt, "steps": 20,
-                                       "hr_scale": 2, "hr_upscaler": "ESRGAN_4x",
-                                       "width": 768, "height": 768}),
-                      headers={"Content-Type": "application/json"}).json()
-    return [Image.open(io.BytesIO(base64.b64decode(i.split(",", 1)[0]))) for i in r['images']]
+import webuiapi
+
+
+# create API client with custom host, port
+api = webuiapi.WebUIApi(host='127.0.0.1', port=7860)
+
+# create API client with custom host, port and https
+#api = webuiapi.WebUIApi(host='webui.example.com', port=443, use_https=True)
+
+# create API client with default sampler, steps.
+#api = webuiapi.WebUIApi(sampler='Euler a', steps=20)
+
+# optionally set username, password when --api-auth is set on webui.
+#api.set_auth('username', 'password')
+

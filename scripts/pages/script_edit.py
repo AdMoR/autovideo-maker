@@ -1,9 +1,10 @@
 # Contents of ~/my_app/pages/page_2.py
 import streamlit as st
 from scripts.ffmpeg_utils import *
-from scripts.video_generator import parse_script_and_scene
-from scripts.web_api import txt_to_speech_call, stable_diff_call
+from scripts.video_generator import parse_script_and_scene_with_char_config
+from scripts.web_api import txt_to_speech_call, api
 from shutil import copyfile
+import json
 
 output_dir = "./temp"
 speakers = ['p225', 'p226', 'p227', 'p228', 'p229', 'p230', 'p231', 'p232', 'p233', 'p234', 'p236', 'p237', 'p238',
@@ -23,7 +24,8 @@ def build_gen(output_dir, speaker, speech_key, prompt_key, image_key, audio_key)
 
     def image_gen():
         prompt = st.session_state[prompt_key]
-        images = stable_diff_call(f"{prompt}, {global_pos_prompt}", global_neg_prompt)
+        images = api.txt2img(prompt=f"{prompt}, {global_pos_prompt}", negative_prompt=global_neg_prompt,
+                             batch_size=1, width=768, height=768).images
         st.session_state[image_key] = images[0]
 
     def audio_gen():
@@ -75,8 +77,10 @@ def save_array():
 
     for k in st.session_state.keys():
 
-        if "image" in k:
-            st.session_state[k].save(f"{output_dir}/{k}.jpg")
+        if "image" in k and "images" not in k:
+            rez = st.session_state[k]
+            print(rez)
+            rez.save(f"{output_dir}/{k}.jpg")
         if "audio" in k:
             i = int(k.split("_")[1])
             audio_path = st.session_state[k]
@@ -105,14 +109,32 @@ def gen_all():
         build_gen(output_dir, x[0], speech_key, prompt_key, image_key, audio_key)()
 
 
+character_config = None
+char_config_path = "character_conf.json"
+if os.path.exists(char_config_path):
+    character_config = json.load(open(char_config_path))
+if "character_config" in st.session_state:
+    character_config = st.session_state["character_config"]
+    st.text(str(character_config))
+
+
+if "story_container" not in st.session_state:
+    example = """Title: My Video 
+        Once upon a time, there was Jean-Michel
+        He was crazy hot"""
+else:
+    example = st.session_state.story_container
+
+
 st.markdown("# Load the base script  ️")
 script = st.text_area("Script",
-                      value="Title: My Video | A landscape \n Narrator: Once upon a time, there was | A landscape")
+                      key="story_container",
+                      value=example)
 
 inputs_array = list()
-sequences, title = parse_script_and_scene(script.split("\n"), mode="no_prompt")
+sequences, title = parse_script_and_scene_with_char_config(script.split("\n"), char_config=character_config)
 
-global_pos_prompt = st.text_area("Global positive prompt", "high quality, 8k")
+global_pos_prompt = st.text_area("Global positive prompt", "high quality, 8k, <lora:add_detail:2>")
 global_neg_prompt = st.text_area("Global negative prompt", "bad quality, low res, bad anatomy, text, nude")
 
 

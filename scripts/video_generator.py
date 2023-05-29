@@ -6,11 +6,17 @@ from collections import defaultdict
 import datetime
 import random
 from textwrap import wrap
+from collections import Counter
 import shutil
 
 from scripts.ffmpeg_utils import *
 from scripts.utils import make_dir
-from scripts.base_video_classes import VideoElement, VideoDescriptor#, N_IMAGE_PER_PROMPT, N_GENERATION_ROUNDS
+from scripts.base_video_classes import VideoElement, VideoDescriptor
+from scripts.story_understanding import find_largest_coref_prompt_in_sentence
+
+
+N_GENERATION_ROUNDS = 1
+N_IMAGE_PER_PROMPT = 1
 
 
 def parse_script_and_scene(lines, separator=".", to_replace=";!,—:", to_clean="/'", mode=None):
@@ -55,6 +61,40 @@ def parse_script_and_scene(lines, separator=".", to_replace=";!,—:", to_clean=
                 sequences.append((name, sub, sub))
             else:
                 raise Exception("Unknown prompt mode")
+    return sequences, title
+
+
+def parse_script_and_scene_with_char_config(lines, separator=".", to_replace=";!,—:", to_clean="/'", char_config=None):
+    """
+    1 - Check the format
+    2 - On dialogue lines, extract name and speech
+    3 - Decompose in smaller chunks based on separators
+    """
+    sequences = list()
+    title = None
+    for l in lines:
+        # 1 - Check the format
+        script = l.strip().replace('"', "")
+        # 2 - We are on a dialogue line, extract name and line
+        # 2.a - There is the right separator
+        if ":" in script:
+            tokens = script.split(":")
+            name, text = tokens[0], ":".join(tokens[1:])
+        # 2.b - Default : the narrator
+        else:
+            name = "Narrator"
+            text = script
+        # 3 - Decompose in smaller chunks based on separators
+        text = text.strip()
+        for c in to_replace:
+            text = text.replace(c, separator)
+        for c in to_clean:
+            text = text.replace(c, "")
+        for sub in text.split(separator):
+            char_prompt, rest = find_largest_coref_prompt_in_sentence(sub, char_config)
+            if len(sub) < 3:
+                continue
+            sequences.append((name, sub, char_prompt + ", " + rest))
     return sequences, title
 
 

@@ -1,7 +1,8 @@
 import os
 import pandas as pd
 import random
-
+import spacy
+from collections import defaultdict
 
 # import dataclass
 
@@ -49,8 +50,8 @@ def gen_character_mix(df, gender):
 
 
 def add_random_attributes(gender, n=1):
-    attributes = ["hat", "kepi", "", "", "", ""]
-    body_shape = ["thicc", "fit", "slim", "", ""]
+    attributes = ["hat", "glasses", "", "", "", ""]
+    body_shape = ["plus sized", "fit", "slim", "", ""]
 
     clothes = ["clothes", "outfit", "tuxedo", "shirt", "suit"]
     if gender == "female":
@@ -58,9 +59,12 @@ def add_random_attributes(gender, n=1):
 
     colors = ["red", "blue", "green", "white", "black", "yellow"]
 
+    actions = ["drinking", "action pose", "surprised", "smiling", "looking at the viewer", "reflexive pose",
+               "flexing", "running"]
+
     prompt = ""
-    for selected in [attributes, body_shape, colors, clothes]:
-        prompt += random.sample(selected, n)[0] + " "
+    for selected in [attributes, body_shape, colors, clothes, actions]:
+        prompt += random.sample(selected, n)[0] + ", "
 
     return prompt
 
@@ -83,3 +87,75 @@ def get_random_char_prompt(gender):
 
     return " ".join(pos_tags), " ".join(neg_tags)
 
+
+# Define lightweight function for resolving references in text
+def resolve_references(doc) -> str:
+    """Function for resolving references with the coref ouput
+    doc (Doc): The Doc object processed by the coref pipeline
+    RETURNS (str): The Doc string with resolved references
+    """
+    # token.idx : token.text
+    token_mention_mapper = {}
+    output_string = ""
+    clusters = [
+        val for key, val in doc.spans.items() if key.startswith("coref_cluster")
+    ]
+
+    # Iterate through every found cluster
+    for cluster in clusters:
+        first_mention = cluster[0]
+        # Iterate through every other span in the cluster
+        for mention_span in list(cluster)[1:]:
+            # Set first_mention as value for the first token in mention_span in the token_mention_mapper
+            token_mention_mapper[mention_span[0].idx] = first_mention.text + mention_span[0].whitespace_
+
+            for token in mention_span[1:]:
+                # Set empty string for all the other tokens in mention_span
+                token_mention_mapper[token.idx] = ""
+
+    # Iterate through every token in the Doc
+    for token in doc:
+        # Check if token exists in token_mention_mapper
+        if token.idx in token_mention_mapper:
+            output_string += token_mention_mapper[token.idx]
+        # Else add original token text
+        else:
+            output_string += token.text + token.whitespace_
+
+    return output_string
+
+
+def text_reference_resolver(text):
+    nlp = spacy.load("en_coreference_web_trf")
+    doc = nlp(text)
+    return doc, {cluster: [e.text for e in doc.spans[cluster] if
+                           len(e.text.split(" ")) >= 2 or len(e.text) >= 5]
+                 for cluster in doc.spans}
+
+
+def find_largest_coref_prompt_in_sentence(sentence, character_config):
+    if character_config is None:
+        return "", sentence
+
+    matched = defaultdict(list)
+    for name, config in character_config.items():
+        references = config["text_parts"]
+        for part in references:
+            for sub_part in str(part.strip()).split(","):
+                if sub_part and str(sub_part) in sentence:
+                    matched[name].append(sub_part)
+
+    if len(matched) == 0:
+        return "", sentence
+    reference = sorted(matched.keys(), key=lambda x: len(matched[x]), reverse=True)[0]
+
+    print("\n")
+    print(sentence, matched)
+    print("\n")
+
+    if len(matched) == 0:
+        return "", sentence
+    # surgery : remove matched eleemnt in sentence
+    tokens = sentence.split(" ")
+    kept = set(tokens).difference(set(matched[reference]))
+    return character_config[reference]["prompt"], ", ".join(kept)
