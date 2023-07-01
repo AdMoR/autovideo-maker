@@ -21,7 +21,6 @@ audioread==3.0.0
 av==10.0.0
 Babel==2.12.1
 backcall==0.2.0
-basicsr==1.4.2
 beautifulsoup4==4.11.2
 bitsandbytes==0.37.2
 bleach==6.0.0
@@ -190,7 +189,6 @@ nltk==3.5
 notebook==6.5.3
 notebook_shim==0.2.2
 num2words==0.5.12
-numba==0.57.0
 numpy==1.23.5
 oauthlib==3.2.2
 omegaconf==2.2.3
