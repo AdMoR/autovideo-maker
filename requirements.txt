@@ -96,10 +96,6 @@ gradio==3.31.0
 gradio_client==0.2.5
 greenlet==2.0.2
 grpcio==1.51.3
-gruut==2.2.3
-gruut-ipa==0.13.0
-gruut-lang-de==2.0.0
-gruut-lang-en==2.0.0
 h11==0.12.0
 h5py==3.8.0
 html5lib==1.1
@@ -145,8 +141,6 @@ jupyterlab-widgets==3.0.6
 keyring==23.13.1
 kiwisolver==1.4.4
 kornia==0.6.7
-langchain==0.0.127
-langcodes==3.3.0
 lark==1.1.2
 lazy_loader==0.2
 librosa==0.8.0
