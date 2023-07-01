@@ -294,7 +294,6 @@ safetensors==0.3.1
 scikit-image==0.20.0
 scikit-learn==1.2.2
 scipy==1.9.1
--e git+ssh://git@github.com/AdMoR/autovideo-maker.git@648ae7e27d91d91eb40286fca20ccec8bc7cf14b#egg=scripts
 SecretStorage==3.3.3
 selenium==4.9.0
 semantic-version==2.10.0
