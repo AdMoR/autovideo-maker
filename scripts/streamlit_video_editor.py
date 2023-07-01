@@ -4,6 +4,7 @@ import pickle
 from scripts.web_api import api
 from scripts.video_generator import parse_script_and_scene
 import json
+import os
 from scripts.story_understanding import text_reference_resolver, get_random_char_prompt
 
 nlp = spacy.load("en_core_web_sm")
@@ -48,12 +49,20 @@ if "clusters" not in st.session_state:
     parse_script()
 clusters = load_clusters()
 
+character_config = None
+char_config_path = f"character_conf_{hash(script) % 10000}.json"
+if os.path.exists(char_config_path):
+    character_config = json.load(open(char_config_path))
+if "character_config" in st.session_state:
+    character_config = st.session_state["character_config"]
+    st.text(str(character_config))
+
 
 def make_gen(char_key, images_key):
     def gen():
         pos = st.session_state[char_key]
         images = api.txt2img(prompt=pos + ", " + global_pos_prompt,
-                             negative_prompt=global_neg_prompt,
+                             negative_prompt=global_neg_prompt, steps=40,
                              width=512, height=512, batch_size=6).images
         st.session_state[images_key] = images
     return gen
@@ -81,8 +90,13 @@ for i, (tab, (name, elements)) in enumerate(zip(tabs, clusters.items())):
         st.text(str(name))
         st.text_area("Occurences", value=", ".join(map(str, elements)))
         gender = st.selectbox("Gender", options=["male", "female"], index=0, key=gender_key)
-        st.text_area("Character description", key=char_key,
-                     value=get_char_description(char_key, st.session_state[gender_key]))
+
+        coref_key = f"coref_clusters_{i + 1}"
+        if character_config is not None and coref_key in character_config:
+            description = character_config[coref_key]["prompt"]
+        else:
+            description = get_char_description(char_key, st.session_state[gender_key])
+        st.text_area("Character description", key=char_key, value=description)
         c1, c2 = st.columns(2)
         with c1:
             st.button("Alternate description", key=f"alt_{char_key}",

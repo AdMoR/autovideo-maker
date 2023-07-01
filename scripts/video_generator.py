@@ -1,12 +1,7 @@
 import json
-import os
-import argparse
 from typing import NamedTuple, Any, Callable, List
-from collections import defaultdict
 import datetime
 import random
-from textwrap import wrap
-from collections import Counter
 import shutil
 
 from scripts.ffmpeg_utils import *
@@ -15,8 +10,8 @@ from scripts.base_video_classes import VideoElement, VideoDescriptor
 from scripts.story_understanding import find_largest_coref_prompt_in_sentence
 
 
-N_GENERATION_ROUNDS = 1
-N_IMAGE_PER_PROMPT = 1
+N_GENERATION_ROUNDS = 2
+N_IMAGE_PER_PROMPT = 2
 
 
 def parse_script_and_scene(lines, separator=".", to_replace=";!,—:", to_clean="/'", mode=None):
@@ -101,7 +96,7 @@ def parse_script_and_scene_with_char_config(lines, separator=".", to_replace=";!
 class Dialogue2Video(NamedTuple):
     dialogue_path: str
     output_dir_prefix: str
-    audio_lib_folder: str = "/home/amor/Documents/code_dw/ai-pokemon-episode/audio_lib"
+    audio_lib_folder: str = "/home/amor/Documents/code_dw/ai-pokemon-episode/audio_lib/adventure"
     image_prompt_template: str = "{}, anime art, an image from Pokemon the film, high quality"
     title_prompt: str = "sunset, bright colors, no_humans, panorama, great details"
     final_directory: str = "./finished_clips"

@@ -88,13 +88,16 @@ def save_array():
             #scipy.io.wavfile.write(f"{k}.wav", rate, audio)
 
     video_chunks = list()
+    config = list()
     for i, (speaker, who, n_speech, n_prompt) in enumerate(inputs_array):
         vid_path = to_video(output_dir, n_speech, f"{output_dir}/image_{i}.jpg", f"{output_dir}/audio_{i}.wav",
                             generation_index=i)
+        config.append((i, speaker, who, n_speech, f"{output_dir}/image_{i}.jpg", f"{output_dir}/audio_{i}.wav"))
         video_chunks.append(vid_path)
 
     out = combine_part_in_concat_file(video_chunks, f"{output_dir}/temp.txt", f"{output_dir}/video.mp4")
     st.session_state["video"] = add_soundtrack(out, soundtrack_path, f"{output_dir}/final_video.mp4", volume_mix)
+    json.dump(config, open(f"{output_dir}/video_config.json", "w"))
     print("---->", st.session_state["video"])
 
 

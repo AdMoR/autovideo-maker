@@ -1,10 +1,6 @@
-import os
-import argparse
-from typing import NamedTuple, Any, Callable
-from collections import defaultdict
+
 import datetime
 import sys
-import random
 
 from utils import *
 from scripts.video_generator import Dialogue2Video

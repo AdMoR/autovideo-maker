@@ -1,10 +1,9 @@
+import os
 import urllib
-import requests
-import json
 import subprocess
-import base64
-from PIL import Image
-import io
+
+import webuiapi
+
 
 
 def txt_to_speech_call(speech_lines, speaker, outpath):
@@ -18,18 +17,16 @@ def txt_to_speech_call(speech_lines, speaker, outpath):
     return outpath
 
 
-import webuiapi
-
-
 # create API client with custom host, port
-api = webuiapi.WebUIApi(host='127.0.0.1', port=7860)
+host = os.environ.get("SD_WEBUI_HOST", '127.0.0.1')
+port = os.environ.get("SD_WEBUI_PORT", 7860)
+api = webuiapi.WebUIApi(host=host, port=port)
+
 
 # create API client with custom host, port and https
 #api = webuiapi.WebUIApi(host='webui.example.com', port=443, use_https=True)
-
 # create API client with default sampler, steps.
 #api = webuiapi.WebUIApi(sampler='Euler a', steps=20)
-
 # optionally set username, password when --api-auth is set on webui.
 #api.set_auth('username', 'password')
 

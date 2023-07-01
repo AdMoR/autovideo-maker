@@ -1,19 +1,13 @@
 import os
 import argparse
 from typing import NamedTuple, Any, Callable
-import openai
-
-
-with open("/home/amor/Documents/code_dw/langchain_test/token") as f:
-    token = f.readline()
-
-openai.api_key = "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"
 
 
 class TitlesGenerator(NamedTuple):
     base_prompt_path: str = "/home/amor/Documents/code_dw/ai-pokemon-episode/prompts/prompt_title_pokemon_episode.txt"
 
     def generate(self):
+        import openai
         with open(self.base_prompt_path) as f:
             prompt = f.readlines()
 
@@ -32,6 +26,7 @@ class TitleBasedEpisodeGenerator(NamedTuple):
     base_prompt_path: str = "/home/amor/Documents/code_dw/ai-pokemon-episode/prompts/prompt_base_pokemon.txt"
 
     def generate(self, title):
+        import openai
         with open(self.base_prompt_path) as f:
             template = f.readlines()
         template = " ".join(template)
