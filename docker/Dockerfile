@@ -1,5 +1,6 @@
 FROM python:3.9-slim
 WORKDIR /code
+RUN echo "toto"
 RUN apt-get update && apt-get install -y git curl
 RUN curl -sSL https://install.python-poetry.org | python3 -
 RUN git clone https://github.com/AdMoR/autovideo-maker
