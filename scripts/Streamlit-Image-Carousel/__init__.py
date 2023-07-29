@@ -9,7 +9,7 @@ import sys
 import json
 from typing import NamedTuple
 
-from scripts.base_video_classes import VideoElement, VideoDescriptor, N_IMAGE_PER_PROMPT
+from scripts.base_video_classes import VideoElement, VideoDescriptor
 from scripts.ffmpeg_utils import combine_part_in_concat_file, add_soundtrack
 from scripts.utils import make_dir
 
