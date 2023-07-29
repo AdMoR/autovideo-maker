@@ -126,7 +126,11 @@ def resolve_references(doc) -> str:
 
 
 def text_reference_resolver(text):
-    nlp = spacy.load("en_coreference_web_trf")
+    try:
+        nlp = spacy.load("en_coreference_web_trf")
+    except:
+        spacy.cli.download("en_coreference_web_trf")
+        nlp = spacy.load("en_coreference_web_trf")
     doc = nlp(text)
     return doc, {cluster: [e.text for e in doc.spans[cluster] if
                            len(e.text.split(" ")) >= 2 or len(e.text) >= 5]

@@ -7,7 +7,11 @@ import json
 import os
 from autovideo.story_understanding import text_reference_resolver, get_random_char_prompt
 
-nlp = spacy.load("en_core_web_sm")
+try:
+    nlp = spacy.load("en_core_web_sm")
+except:
+    spacy.cli.download("en_core_web_sm")
+    nlp = spacy.load("en_core_web_sm")
 models = [m["title"] for m in api.get_sd_models()]
 
 
