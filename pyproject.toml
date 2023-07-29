@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "video_maker"
+name = "autovideo_maker"
 version = "0.1.0"
 description = ""
 authors = ["Admor"]
