@@ -10,7 +10,7 @@ from collections import defaultdict
 def get_gendered_celebs(gender):
     if gender not in ["male", "female"]:
         raise Exception("Use male or female")
-    path = f"/home/amor/Documents/code_dw/ai-pokemon-episode/external_data/{gender}_names.txt"
+    path = f"./external_data/{gender}_names.txt"
 
     with open(path) as f:
         lines = f.readlines()
@@ -36,7 +36,7 @@ def build_celeb_df():
 
 
 def get_celeb_popularity():
-    path = f"/home/amor/Documents/code_dw/ai-pokemon-episode/external_data/celeb_names.txt"
+    path = f"./external_data/celeb_names.txt"
     df = pd.read_csv(path, delimiter="\t", names=["name", "famous"])
     df["name"] = df["name"].apply(lambda x: x.replace("_", " "))
     return df

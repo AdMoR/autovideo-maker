@@ -66,8 +66,8 @@ def make_gen(char_key, images_key):
     def gen():
         pos = st.session_state[char_key]
         images = api.txt2img(prompt=pos + ", " + global_pos_prompt,
-                             negative_prompt=global_neg_prompt, steps=40,
-                             width=512, height=512, batch_size=6).images
+                             negative_prompt=global_neg_prompt, steps=20,
+                             width=1024, height=1024, batch_size=3).images
         st.session_state[images_key] = images
     return gen
 
